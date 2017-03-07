@@ -1,4 +1,6 @@
 import {Router, RouterConfiguration} from 'aurelia-router';
+// server : > au run --watch
+
 
 export class App {
   

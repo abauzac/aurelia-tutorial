@@ -1,7 +1,9 @@
+import {EventAggregator} from 'aurelia-event-aggregator';
 import {WebAPI} from './web-api';
+import {ContactUpdated, ContactViewed} from './messages';
 import {inject} from 'aurelia-framework';
 
-@inject(WebAPI)
+@inject(WebAPI,EventAggregator)
 /**
  * ContactList
  */
@@ -13,7 +15,13 @@ export class ContactList  {
      * constructor
      * @param api from Dependency Injection 
      */
-    constructor(private api:WebAPI) {  
+    constructor(private api:WebAPI, ea: EventAggregator) {  
+        ea.subscribe(ContactViewed, msg => this.select(msg.contact));
+        ea.subscribe(ContactUpdated, msg => {
+            let id = msg.contact.id;
+            let found = this.contacts.find(x => x.id == id);
+            Object.assign(found, msg.contact);
+        });
     }
     /**
      * hook which gets called after both the view-model and the view are created

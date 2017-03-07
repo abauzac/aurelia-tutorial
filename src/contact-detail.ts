@@ -1,6 +1,8 @@
 import {inject} from "aurelia-framework";
 import {WebAPI} from "./web-api";
 import {areEqual} from "./utility";
+import {EventAggregator} from 'aurelia-event-aggregator';
+import {ContactUpdated,ContactViewed} from './messages';
 import { RouteConfig, 
     RoutableComponentActivate, 
     RoutableComponentCanDeactivate } from 'aurelia-router';
@@ -11,14 +13,14 @@ interface Contact{
     email:string;
 }
 
-@inject(WebAPI)
+@inject(WebAPI, EventAggregator)
 export class ContactDetail implements RoutableComponentActivate, RoutableComponentCanDeactivate{
 
     routeConfig:RouteConfig;
     contact:Contact;
     originalContact: Contact;
 
-    constructor(private api:WebAPI) {
+    constructor(private api:WebAPI, private ea: EventAggregator) {
         
     }
 
@@ -37,6 +39,8 @@ export class ContactDetail implements RoutableComponentActivate, RoutableCompone
             this.contact = <Contact>contact;
             this.routeConfig.navModel.setTitle(this.contact.firstName);
             this.originalContact = JSON.parse(JSON.stringify(this.contact));
+            // dispatch event contact ContactViewed
+            this.ea.publish(new ContactViewed(this.contact));
         });
     }
 
@@ -46,7 +50,10 @@ export class ContactDetail implements RoutableComponentActivate, RoutableCompone
      */
     canDeactivate(){
         if(!areEqual(this.originalContact, this.contact)){
-            return confirm("Unsaved changes, really quit ?");
+            var res =  confirm("Unsaved changes, really quit ?");
+            // user cancelled : stay on contact view
+            !res && this.ea.publish(new ContactViewed(this.contact));
+            return res;
         }
         return true;
     }
@@ -63,6 +70,7 @@ export class ContactDetail implements RoutableComponentActivate, RoutableCompone
             this.contact = <Contact>contact;
             this.routeConfig.navModel.setTitle(this.contact.firstName);
             this.originalContact = JSON.parse(JSON.stringify(this.contact));
+            this.ea.publish(new ContactUpdated(this.contact));
         });
     }
 

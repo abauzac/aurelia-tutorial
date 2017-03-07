@@ -26,13 +26,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-define('contact-list',["require", "exports", "./web-api", "aurelia-framework"], function (require, exports, web_api_1, aurelia_framework_1) {
+define('contact-list',["require", "exports", "aurelia-event-aggregator", "./web-api", "./messages", "aurelia-framework"], function (require, exports, aurelia_event_aggregator_1, web_api_1, messages_1, aurelia_framework_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var ContactList = (function () {
-        function ContactList(api) {
+        function ContactList(api, ea) {
+            var _this = this;
             this.api = api;
             this.selectId = 0;
+            ea.subscribe(messages_1.ContactViewed, function (msg) { return _this.select(msg.contact); });
+            ea.subscribe(messages_1.ContactUpdated, function (msg) {
+                var id = msg.contact.id;
+                var found = _this.contacts.find(function (x) { return x.id == id; });
+                Object.assign(found, msg.contact);
+            });
         }
         ContactList.prototype.created = function () {
             var _this = this;
@@ -45,8 +52,8 @@ define('contact-list',["require", "exports", "./web-api", "aurelia-framework"], 
         return ContactList;
     }());
     ContactList = __decorate([
-        aurelia_framework_1.inject(web_api_1.WebAPI),
-        __metadata("design:paramtypes", [web_api_1.WebAPI])
+        aurelia_framework_1.inject(web_api_1.WebAPI, aurelia_event_aggregator_1.EventAggregator),
+        __metadata("design:paramtypes", [web_api_1.WebAPI, aurelia_event_aggregator_1.EventAggregator])
     ], ContactList);
     exports.ContactList = ContactList;
 });
@@ -225,12 +232,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-define('contact-detail',["require", "exports", "aurelia-framework", "./web-api", "./utility"], function (require, exports, aurelia_framework_1, web_api_1, utility_1) {
+define('contact-detail',["require", "exports", "aurelia-framework", "./web-api", "./utility", "aurelia-event-aggregator", "./messages"], function (require, exports, aurelia_framework_1, web_api_1, utility_1, aurelia_event_aggregator_1, messages_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var ContactDetail = (function () {
-        function ContactDetail(api) {
+        function ContactDetail(api, ea) {
             this.api = api;
+            this.ea = ea;
         }
         ContactDetail.prototype.activate = function (params, routeConfig) {
             var _this = this;
@@ -239,11 +247,14 @@ define('contact-detail',["require", "exports", "aurelia-framework", "./web-api",
                 _this.contact = contact;
                 _this.routeConfig.navModel.setTitle(_this.contact.firstName);
                 _this.originalContact = JSON.parse(JSON.stringify(_this.contact));
+                _this.ea.publish(new messages_1.ContactViewed(_this.contact));
             });
         };
         ContactDetail.prototype.canDeactivate = function () {
             if (!utility_1.areEqual(this.originalContact, this.contact)) {
-                return confirm("Unsaved changes, really quit ?");
+                var res = confirm("Unsaved changes, really quit ?");
+                !res && this.ea.publish(new messages_1.ContactViewed(this.contact));
+                return res;
             }
             return true;
         };
@@ -260,15 +271,54 @@ define('contact-detail',["require", "exports", "aurelia-framework", "./web-api",
                 _this.contact = contact;
                 _this.routeConfig.navModel.setTitle(_this.contact.firstName);
                 _this.originalContact = JSON.parse(JSON.stringify(_this.contact));
+                _this.ea.publish(new messages_1.ContactUpdated(_this.contact));
             });
         };
         return ContactDetail;
     }());
     ContactDetail = __decorate([
-        aurelia_framework_1.inject(web_api_1.WebAPI),
-        __metadata("design:paramtypes", [web_api_1.WebAPI])
+        aurelia_framework_1.inject(web_api_1.WebAPI, aurelia_event_aggregator_1.EventAggregator),
+        __metadata("design:paramtypes", [web_api_1.WebAPI, aurelia_event_aggregator_1.EventAggregator])
     ], ContactDetail);
     exports.ContactDetail = ContactDetail;
+});
+
+define('message',["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var ContactUpdated = (function () {
+        function ContactUpdated(contact) {
+            this.contact = contact;
+        }
+        return ContactUpdated;
+    }());
+    exports.ContactUpdated = ContactUpdated;
+    var ContactViewed = (function () {
+        function ContactViewed(contact) {
+            this.contact = contact;
+        }
+        return ContactViewed;
+    }());
+    exports.ContactViewed = ContactViewed;
+});
+
+define('messages',["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var ContactUpdated = (function () {
+        function ContactUpdated(contact) {
+            this.contact = contact;
+        }
+        return ContactUpdated;
+    }());
+    exports.ContactUpdated = ContactUpdated;
+    var ContactViewed = (function () {
+        function ContactViewed(contact) {
+            this.contact = contact;
+        }
+        return ContactViewed;
+    }());
+    exports.ContactViewed = ContactViewed;
 });
 
 define('text!app.html', ['module'], function(module) { module.exports = "<template><require from=\"bootstrap/css/bootstrap.css\"></require><require from=\"./styles.css\"></require><require from=\"./contact-list\"></require><nav class=\"navbar navbar-default navbar-fixed-top\" role=\"navigation\"><div class=\"navbar-header\"><a class=\"navbar-brand\" href=\"#\"><i class=\"fa fa-user\"></i> <span>Contacts</span></a></div></nav><div class=\"container\"><div class=\"row\"><contact-list class=\"col-md-4\"></contact-list><router-view class=\"col-md-8\"></router-view></div></div></template>"; });
